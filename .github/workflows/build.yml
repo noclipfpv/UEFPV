@@ -1,0 +1,53 @@
+name: build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to attach the zip to a release on tags
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Flight model tests
+        run: build\Release\fpv_sim_tests.exe && build\Release\fpv_gimbal_tests.exe
+        shell: cmd
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = if ($env:GITHUB_REF_TYPE -eq "tag") { "uefpv-$env:GITHUB_REF_NAME" } else { "uefpv-dev" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build/Release/uevr_fpv_drone.dll dist/
+          Copy-Item packaging/LISEZMOI-README.txt dist/
+          Compress-Archive -Path dist/* -DestinationPath "$name.zip" -Force
+          "ZIP_NAME=$name.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uefpv
+          path: |
+            ${{ env.ZIP_NAME }}
+            build/Release/uevr_fpv_drone.pdb
+
+      # On a tag (v0.7.7...), publish the zip as a pre-release; edit the notes on GitHub afterwards.
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          prerelease: true
+          generate_release_notes: true

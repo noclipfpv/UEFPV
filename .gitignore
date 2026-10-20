@@ -1,0 +1,19 @@
+# Build output
+build/
+out/
+.vs/
+*.user
+CMakeUserPresets.json
+
+# Binaries and packages are published in GitHub Releases, never committed
+*.dll
+*.pdb
+*.lib
+*.exp
+*.exe
+*.zip
+
+# Local settings / logs from test runs
+fpv_drone.ini
+fpv_drone_imgui.ini
+log.txt
